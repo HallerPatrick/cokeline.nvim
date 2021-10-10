@@ -19,120 +19,107 @@ local components = {}
 local focused_line = {}
 
 local state = {
-  buffers = {},
-  order = {},
+    buffers = {},
+    order = {}
 }
 
 local redraw = function()
-  cmd('redrawtabline')
-  cmd('redraw')
+    cmd('redrawtabline')
+    cmd('redraw')
 end
 
 local get_current_index = function()
-  local current_buffer_number = fn.bufnr('%')
-  for index, buffer in ipairs(state.buffers) do
-    if current_buffer_number == buffer.number then
-      return index
+    local current_buffer_number = fn.bufnr('%')
+    for index, buffer in ipairs(state.buffers) do
+        if current_buffer_number == buffer.number then return index end
     end
-  end
 end
 
 local get_target_index = function(args)
-  local target_index
-  if args.target then
-    if args.target < 1 or args.target > #state.buffers then
-      return
+    local target_index
+    if args.target then
+        if args.target < 1 or args.target > #state.buffers then return end
+        target_index = args.target
+    else
+        local current_index = get_current_index()
+        target_index = current_index + args.step
+        if target_index < 1 or target_index > #state.buffers then
+            if settings.cycle_prev_next_mappings then
+                target_index = (target_index - 1) % #state.buffers + 1
+            else
+                return
+            end
+        end
     end
-    target_index = args.target
-  else
-    local current_index = get_current_index()
-    target_index = current_index + args.step
-    if target_index < 1 or target_index > #state.buffers then
-      if settings.cycle_prev_next_mappings then
-        target_index = (target_index - 1) % #state.buffers + 1
-      else
-        return
-      end
-    end
-  end
-  return target_index
+    return target_index
 end
 
 function M.toggle()
-  opt.showtabline = #fn.getbufinfo({buflisted = 1}) > 1 and 2 or 0
+    opt.showtabline = #fn.getbufinfo({
+        buflisted = 1
+    }) > 1 and 2 or 0
 end
 
 function M.focus(args)
-  if opt.showtabline._value == 0 then
-    return
-  end
-  local target_index = get_target_index(args)
-  if not target_index then
-    return
-  end
-  cmd('buffer ' .. state.buffers[target_index].number)
+    if opt.showtabline._value == 0 then return end
+    local target_index = get_target_index(args)
+    if not target_index then return end
+    cmd('buffer ' .. state.buffers[target_index].number)
 end
 
 function M.switch(args)
-  if opt.showtabline._value == 0 then
-    return
-  end
-  local current_index = get_current_index()
-  local target_index = get_target_index(args)
-  if not target_index then
-    return
-  end
-  local current_buffer = state.buffers[current_index]
-  local target_buffer = state.buffers[target_index]
-  state.buffers[current_index] = target_buffer
-  state.buffers[target_index] = current_buffer
-  state.order = map(function(buffer) return buffer.number end, state.buffers)
-  redraw()
+    if opt.showtabline._value == 0 then return end
+    local current_index = get_current_index()
+    local target_index = get_target_index(args)
+    if not target_index then return end
+    local current_buffer = state.buffers[current_index]
+    local target_buffer = state.buffers[target_index]
+    state.buffers[current_index] = target_buffer
+    state.buffers[target_index] = current_buffer
+    state.order = map(function(buffer) return buffer.number end, state.buffers)
+    redraw()
 end
 
 function M.setup(preferences)
-  settings = defaults.merge(preferences)
-  components = componentz.setup(settings)
-  augroups.setup(settings)
-  mappings.setup()
-  opt.showtabline = 2
-  opt.tabline = '%!v:lua.cokeline()'
+    settings = defaults.merge(preferences)
+    components = componentz.setup(settings)
+    augroups.setup(settings)
+    mappings.setup()
+    opt.showtabline = 2
+    opt.tabline = '%!v:lua.cokeline()'
 end
 
 function _G.cokeline()
-  state.buffers = buffers.get_listed(state.order)
+    state.buffers = buffers.get_listed(state.order)
 
-  if settings.hide_when_one_buffer and #state.buffers == 1 then
-    opt.showtabline = 0
-    return
-  end
-
-  local cokeline = Cokeline:new()
-
-  for _, buffer in pairs(state.buffers) do
-    local line = Line:new(buffer)
-    for _, component in pairs(components) do
-      line:add_component(component:render(buffer))
+    if settings.hide_when_one_buffer and #state.buffers == 1 then
+        opt.showtabline = 0
+        return
     end
 
-    if buffer.is_focused then
-      focused_line = {
-        width = line.width,
-        index = buffer.index,
-        colstart = cokeline.width + 1,
-        colend = cokeline.width + line.width,
-      }
+    local cokeline = Cokeline:new()
+
+    for _, buffer in pairs(state.buffers) do
+        local line = Line:new(buffer)
+        for _, component in pairs(components) do
+            line:add_component(component:render(buffer))
+        end
+
+        if buffer.is_focused then
+            focused_line = {
+                width = line.width,
+                index = buffer.index,
+                colstart = cokeline.width + 1,
+                colend = cokeline.width + line.width
+            }
+        end
+
+        cokeline:add_line(line)
     end
 
-    cokeline:add_line(line)
-  end
+    if focused_line then cokeline:render(focused_line) end
 
-  cokeline:render(focused_line)
-
-  return
-    cokeline.before
-    .. cokeline.main
-    .. cokeline.after
+    return cokeline.before .. cokeline.main .. cokeline.after
 end
 
 return M
