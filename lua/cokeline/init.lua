@@ -55,9 +55,13 @@ local get_target_index = function(args)
 end
 
 function M.toggle()
+<<<<<<< HEAD
     opt.showtabline = #fn.getbufinfo({
         buflisted = 1
     }) > 1 and 2 or 0
+=======
+  opt.showtabline = #fn.getbufinfo({buflisted = 1}) == 0 and 0 or 2
+>>>>>>> c430ab62d7038adae282935558f5962d989c3715
 end
 
 function M.focus(args)
@@ -81,21 +85,38 @@ function M.switch(args)
 end
 
 function M.setup(preferences)
+<<<<<<< HEAD
     settings = defaults.merge(preferences)
     components = componentz.setup(settings)
     augroups.setup(settings)
     mappings.setup()
     opt.showtabline = 2
     opt.tabline = '%!v:lua.cokeline()'
+=======
+  settings = defaults.merge(preferences)
+  components = componentz.setup(settings)
+  augroups.setup()
+  mappings.setup()
+  opt.showtabline = 2
+  opt.tabline = '%!v:lua.cokeline()'
+>>>>>>> c430ab62d7038adae282935558f5962d989c3715
 end
 
 function _G.cokeline()
     state.buffers = buffers.get_listed(state.order)
 
+<<<<<<< HEAD
     if settings.hide_when_one_buffer and #state.buffers == 1 then
         opt.showtabline = 0
         return
     end
+=======
+  if (settings.hide_when_one_buffer and #state.buffers == 1)
+      or #state.buffers == 0 then
+    opt.showtabline = 0
+    return
+  end
+>>>>>>> c430ab62d7038adae282935558f5962d989c3715
 
     local cokeline = Cokeline:new()
 
